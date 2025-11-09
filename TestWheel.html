@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lucky Box – Mario Kart Style</title>
+<style>
+  :root{
+    --bg:#0f9d58;            /* Green background */
+    --panel:#ffffff;
+    --muted:#e6f4ea;
+    --accent:#1e6f4a;
+    --accent-2:#39b56c;
+    --text:#0a2a1b;
+    --danger:#d7263d;
+  }
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:var(--bg);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Noto Sans",Arial,"Apple Color Emoji","Segoe UI Emoji";
+    color:var(--text);
+    display:flex; flex-direction:column;
+  }
+  .app{
+    display:grid;
+    grid-template-columns: 370px 1fr;
+    gap:16px;
+    padding:16px;
+    height:100%;
+    box-sizing:border-box;
+  }
+  .panel{
+    background:var(--panel);
+    border-radius:16px;
+    box-shadow:0 10px 30px rgba(0,0,0,.15);
+    padding:16px;
+    overflow:auto;
+  }
+  .panel h2{margin:0 0 12px 0; font-size:18px; color:var(--accent);}
+  .row{display:flex; align-items:center; gap:8px; margin:8px 0;}
+  label{font-size:13px;}
+  input[type="number"],input[type="text"],select{
+    width:100%; padding:8px 10px; border-radius:10px; border:1px solid #c9e5d5; background:#fff;
+    font:inherit;
+  }
+  input[type="file"]{font-size:12px}
+  .small{font-size:12px; opacity:.8}
+  .list{display:flex; flex-direction:column; gap:8px; margin-top:8px;}
+  .item{
+    background:var(--muted); border:1px solid #cdebd9; border-radius:12px; padding:10px;
+    display:grid; grid-template-columns: 80px 1fr auto; gap:8px; align-items:center;
+  }
+  .item .thumb{
+    width:72px; height:72px; border-radius:10px; background:#fff; display:flex; align-items:center; justify-content:center;
+    overflow:hidden; border:1px dashed #b8e0cb; font-size:11px; color:#5b7c6a; text-align:center; padding:6px;
+  }
+  .item .thumb img{max-width:100%; max-height:100%; display:block}
+  .btn{
+    background:var(--accent); color:#fff; border:none; border-radius:12px; padding:10px 14px; font-weight:700;
+    cursor:pointer; box-shadow:0 6px 16px rgba(0,0,0,.15); transition:transform .05s ease;
+  }
+  .btn:hover{transform:translateY(-1px)}
+  .btn.secondary{background:var(--accent-2)}
+  .btn.ghost{background:#07d444; color:var(--accent); border:1px solid #07c057; box-shadow:none}
+  .btn.danger{background:var(--danger)}
+  .controls{display:flex; gap:8px; flex-wrap:wrap}
+  .canvas-wrap{
+    position:relative; height:100%; min-height:420px; background:linear-gradient(180deg, rgba(3, 241, 15, 0.75), rgba(3, 241, 15, 0.75));
+    border-radius:16px; overflow:hidden;
+  }
+  #confettiCanvas, #mkCanvas{position:absolute; inset:0; width:100%; height:100%}
+  .overlay{position:absolute; inset:0; display:none; align-items:center; justify-content:center; backdrop-filter:blur(6px);}
+  .winner{
+    background:#39e406ee; border:2px solid #08ec60; border-radius:24px; padding:18px 24px; text-align:center;
+    box-shadow:0 14px 40px rgba(0,0,0,.25); animation:pop .45s ease;
+  }
+  .winner h1{margin:0 0 6px 0; font-size:42px; color:#0b3b27}
+  .winner p{margin:0; font-size:14px; opacity:.8}
+  .winner .image-win{max-width:40vw; max-height:40vh; display:block; margin:8px auto 0 auto; border-radius:16px}
+  @keyframes pop{0%{transform:scale(.7); opacity:0} 100%{transform:scale(1); opacity:1}}
+  .bigSpin{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:auto;}
+  .bigSpin .btn{font-size:22px; padding:16px 26px; border-radius:18px}
+  .mute{margin-left:auto; font-size:12px; opacity:.8}
+  .hr{height:1px; background:#e4efe9; margin:12px 0}
+  .vol{display:flex; align-items:center; gap:8px}
+  .tip{font-size:12px; opacity:.8; margin-top:6px}
+</style>
+</head>
+<body>
+  <div class="app">
+    <!-- LEFT PANEL: Settings -->
+    <div class="panel" id="leftPanel">
+      <h2>⚙️ Einstellungen</h2>
+      <div class="row">
+        <label style="flex:1">
+          Anzahl Felder
+          <input id="fieldCount" type="number" min="2" max="32" value="8">
+        </label>
+        <button class="btn ghost" id="applyCount">Übernehmen</button>
+      </div>
+
+      <div class="row">
+        <label style="flex:1">
+          Schriftart (vorgegeben)
+          <select id="fontSelect">
+            <option value="system-ui">System (Empfohlen)</option>
+            <option value="Arial, Helvetica, sans-serif">Arial</option>
+            <option value="Verdana, Geneva, sans-serif">Verdana</option>
+            <option value="'Trebuchet MS', sans-serif">Trebuchet</option>
+            <option value="'Comic Sans MS', cursive">Comic Sans</option>
+            <option value="'Impact', sans-serif">Impact</option>
+            <option value="'CustomLuckyFont', sans-serif">Eigene hochgeladene Schrift</option>
+          </select>
+        </label>
+      </div>
+      <div class="row">
+        <label style="flex:1">
+          Eigene Schrift hochladen (.ttf/.otf/.woff)
+          <input id="fontFile" type="file" accept=".ttf,.otf,.woff,.woff2">
+        </label>
+      </div>
+
+      <div class="hr"></div>
+      <h2>🔊 Sounds</h2>
+      <div class="row">
+        <label style="flex:1">
+          Spin-Sound (loop)
+          <input id="spinSound" type="file" accept="audio/*">
+        </label>
+      </div>
+      <div class="row vol">
+        <span class="small" style="width:110px">Spin Lautstärke</span>
+        <input id="spinVol" type="range" min="0" max="1" step="0.01" value="0.25">
+        <span class="small" id="spinVolLbl">25%</span>
+      </div>
+      <div class="row">
+        <label style="flex:1">
+          Gewinn-Sound
+          <input id="winSound" type="file" accept="audio/*">
+        </label>
+      </div>
+      <div class="row vol">
+        <span class="small" style="width:110px">Gewinn Lautstärke</span>
+        <input id="winVol" type="range" min="0" max="1" step="0.01" value="0.6">
+        <span class="small" id="winVolLbl">60%</span>
+      </div>
+      <div class="tip">Hinweis: Sounds werden lokal im Browser abgespielt (keine Server-Uploads nötig).</div>
+
+      <div class="hr"></div>
+      <h2>🏷️ Gewinne (Text oder Bild)</h2>
+      <div class="controls">
+        <button class="btn secondary" id="addItem">+ Feld hinzufügen</button>
+        <button class="btn ghost" id="clearAll">Alle Felder leeren</button>
+      
+        <button class="btn" id="saveState">💾 Speichern</button>
+      </div>
+      <div id="items" class="list"></div>
+    </div>
+
+    <!-- RIGHT: Item-Box + Overlay -->
+    <div class="panel">
+      <div class="canvas-wrap" id="canvasWrap">
+        <canvas id="confettiCanvas"></canvas>
+        <!-- Mario Kart style animation canvas -->
+        <canvas id="mkCanvas"></canvas>
+
+        <!-- Winner overlay -->
+        <div class="overlay" id="overlay">
+          <div class="winner" id="winnerBox">
+            <h1 id="winnerTitle">Gewinn!</h1>
+            <img id="winnerImage" class="image-win" alt="" style="display:none">
+            <p id="winnerText" class="small"></p>
+          </div>
+        </div>
+
+        <!-- Big spin button (shown when hidden/ready) -->
+        <div class="bigSpin" id="bigSpin">
+          <button class="btn" id="spinBtn">🎯 SPIN</button>
+          <button class="btn ghost mute" id="toggleMute">🔈 Ton an/aus</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(async function(){
+  /*** State ***/
+  const itemsEl = document.getElementById('items');
+  const fieldCountEl = document.getElementById('fieldCount');
+  const applyCountBtn = document.getElementById('applyCount');
+  const addItemBtn = document.getElementById('addItem');
+  const clearAllBtn = document.getElementById('clearAll');
+  const saveBtn = document.getElementById('saveState');
+  const STORAGE_KEY = 'LuckyBox_MarioKart_State_v1';
+  let spinSoundDataURL = null;
+  let winSoundDataURL = null;
+
+  function serializePrizes(){
+    return prizes.map(p => ({
+      type: p.type,
+      text: p.text || '',
+      imgData: p.imgData || null
+    }));
+  }
+
+  function saveState(){
+    try{
+      const state = {
+        fieldCount: parseInt(fieldCountEl.value,10) || 8,
+        font: fontSelect.value || '',
+        spinVol: parseFloat(spinVol.value)||0,
+        winVol: parseFloat(winVol.value)||0,
+        spinSound: spinSoundDataURL || null,
+        winSound:  winSoundDataURL || null,
+        prizes: serializePrizes()
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      alert('Gespeichert!');
+    }catch(e){
+      console.error(e);
+      alert('Konnte nicht speichern.');
+    }
+  }
+
+  function dataUrlToAudio(url){
+    if (!url) return null;
+    const a = new Audio(url);
+    a.preload = 'auto';
+    return a;
+  }
+
+  async function loadStateIfAny(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const state = JSON.parse(raw);
+
+      // restore basics
+      if (state.fieldCount) fieldCountEl.value = String(state.fieldCount);
+      if (state.font) fontSelect.value = state.font;
+      if (typeof state.spinVol==='number') { spinVol.value = String(state.spinVol); document.getElementById('spinVolLbl').textContent = Math.round(state.spinVol*100)+'%'; }
+      if (typeof state.winVol==='number')  { winVol.value  = String(state.winVol);  document.getElementById('winVolLbl').textContent  = Math.round(state.winVol*100)+'%'; }
+
+      // restore sounds
+      if (state.spinSound){ spinSoundDataURL = state.spinSound; spinAudio = dataUrlToAudio(spinSoundDataURL); if (spinAudio){ spinAudio.loop=true; spinAudio.volume=parseFloat(spinVol.value);} }
+      if (state.winSound){  winSoundDataURL  = state.winSound;  winAudio  = dataUrlToAudio(winSoundDataURL);  if (winAudio){ winAudio.volume=parseFloat(winVol.value);} }
+
+      // restore prizes
+      const list = Array.isArray(state.prizes) ? state.prizes : [];
+      itemsEl.innerHTML=''; prizes = [];
+      for (const p of list){
+        addPrizeRow({ type:p.type||'text', text:p.text||'', imgData:p.imgData||null });
+      }
+    }catch(e){
+      console.warn('Load failed', e);
+    }
+  }
+
+
+  const fontSelect = document.getElementById('fontSelect');
+  const fontFile = document.getElementById('fontFile');
+
+  const spinSoundInput = document.getElementById('spinSound');
+  const winSoundInput  = document.getElementById('winSound');
+  const spinVol = document.getElementById('spinVol');
+  const winVol  = document.getElementById('winVol');
+  const spinVolLbl = document.getElementById('spinVolLbl');
+  const winVolLbl  = document.getElementById('winVolLbl');
+
+  const confettiCanvas = document.getElementById('confettiCanvas');
+  const mkCanvas = document.getElementById('mkCanvas');
+  const overlay = document.getElementById('overlay');
+  const winnerTitle = document.getElementById('winnerTitle');
+  const winnerText = document.getElementById('winnerText');
+  const winnerImage = document.getElementById('winnerImage');
+
+  const bigSpin = document.getElementById('bigSpin');
+  const spinBtn = document.getElementById('spinBtn');
+  const toggleMute = document.getElementById('toggleMute');
+
+  const cfx = confettiCanvas.getContext('2d');
+  const mkx = mkCanvas.getContext('2d');
+
+  let prizes = []; // { type: 'text'|'image', text?:string, img?:Image, imgURL?:string }
+  let spinAudio = null;
+  let winAudio = null;
+
+  /*** Helpers ***/
+  function resizeCanvases(){
+    const rect = mkCanvas.parentElement.getBoundingClientRect();
+    confettiCanvas.width = rect.width;
+    confettiCanvas.height = rect.height;
+    mkCanvas.width = rect.width;
+    mkCanvas.height = rect.height;
+  }
+  window.addEventListener('resize', resizeCanvases);
+
+  function createDefaultPrizes(n){
+    prizes = [];
+    itemsEl.innerHTML = '';
+    for (let i=0; i<n; i++){
+      addPrizeRow({type:'text', text:`Gewinn ${i+1}`});
+    }
+  }
+
+  function addPrizeRow(initial){
+    const idx = prizes.length;
+    const row = document.createElement('div');
+    row.className = 'item';
+    row.dataset.index = idx;
+
+    const thumb = document.createElement('div');
+    thumb.className = 'thumb';
+    thumb.textContent = 'Kein Bild';
+    row.appendChild(thumb);
+
+    const middle = document.createElement('div');
+    const typeSel = document.createElement('select');
+    typeSel.innerHTML = `<option value="text">Text</option><option value="image">Bild</option>`;
+    typeSel.value = initial?.type || 'text';
+
+    const textInput = document.createElement('input');
+    textInput.type = 'text';
+    textInput.placeholder = 'Gewinn-Text';
+    textInput.value = initial?.text || '';
+
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.style.display = (typeSel.value==='image')?'block':'none';
+
+    const small = document.createElement('div');
+    small.className='small';
+    small.textContent = 'Tipp: Bei Bildern wird der Text ignoriert.';
+
+    middle.appendChild(typeSel);
+    middle.appendChild(textInput);
+    middle.appendChild(fileInput);
+    middle.appendChild(small);
+
+    const right = document.createElement('div');
+    right.style.display='flex';
+    right.style.flexDirection='column';
+    right.style.gap='8px';
+    const delBtn = document.createElement('button');
+    delBtn.className='btn danger';
+    delBtn.textContent='Entfernen';
+    right.appendChild(delBtn);
+
+    row.appendChild(middle);
+    row.appendChild(right);
+    itemsEl.appendChild(row);
+
+    const prize = {type:typeSel.value, text:textInput.value||`Gewinn ${idx+1}`};
+    if (initial?.imgData){
+      const image = new Image();
+      image.onload = ()=>{ prize.img=image; prize.imgURL=initial.imgData; prize.imgData=initial.imgData; refreshThumb(); };
+      image.src = initial.imgData;
+    }
+
+    prizes.push(prize);
+
+    function refreshThumb(){
+      if (prize.type==='image' && prize.img){
+        thumb.innerHTML='';
+        const im = document.createElement('img');
+        im.src = prize.img.src;
+        thumb.appendChild(im);
+      } else {
+        thumb.textContent = 'Kein Bild';
+      }
+    }
+
+    typeSel.addEventListener('change', ()=>{
+      prize.type = typeSel.value;
+      fileInput.style.display = (prize.type==='image')?'block':'none';
+      refreshThumb();
+    });
+
+    textInput.addEventListener('input', ()=>{
+      prize.text = textInput.value;
+    });
+
+    fileInput.addEventListener('change', ()=>{
+      const f = fileInput.files?.[0];
+      if (!f) { prize.img = null; prize.imgURL = null; prize.imgData = null; refreshThumb(); return; }
+      const url = URL.createObjectURL(f);
+      const image = new Image();
+      image.onload = ()=>{ prize.img=image; prize.imgURL=url; refreshThumb(); };
+      image.onerror = ()=>{ URL.revokeObjectURL(url); alert('Bild konnte nicht geladen werden.'); };
+      image.src = url;
+      // Also store DataURL for persistence
+      const reader = new FileReader();
+      reader.onload = (ev)=>{ prize.imgData = ev.target.result; };
+      reader.readAsDataURL(f);
+
+      prize.text = '';
+      textInput.value = '';
+    });
+
+    delBtn.addEventListener('click', ()=>{
+      const i = [...itemsEl.children].indexOf(row);
+      if (i>=0){
+        itemsEl.removeChild(row);
+        prizes.splice(i,1);
+      }
+    });
+  }
+
+  /*** Font handling ***/
+  fontFile.addEventListener('change', async ()=>{
+    const f = fontFile.files?.[0];
+    if (!f) return;
+    try{
+      const data = await f.arrayBuffer();
+      const font = new FontFace('CustomLuckyFont', data);
+      await font.load();
+      document.fonts.add(font);
+      fontSelect.value = "'CustomLuckyFont', sans-serif";
+    }catch(e){
+      alert('Schrift konnte nicht geladen werden.');
+    }
+  });
+
+  /*** Sound handling ***/
+  function loadAudioFromFile(input){
+    const f = input.files?.[0];
+    if (!f) return null;
+    const url = URL.createObjectURL(f);
+    const a = new Audio(url);
+    a.preload = 'auto';
+    return a;
+  }
+  spinSoundInput.addEventListener('change', ()=>{
+    spinAudio = loadAudioFromFile(spinSoundInput);
+    // store dataURL for persistence
+    (function(){
+      const f = spinSoundInput.files?.[0];
+      if (f){
+        const r = new FileReader();
+        r.onload = (ev)=>{ spinSoundDataURL = ev.target.result; };
+        r.readAsDataURL(f);
+      } else { spinSoundDataURL = null; }
+    })();
+
+    if (spinAudio){ spinAudio.loop = true; spinAudio.volume = parseFloat(spinVol.value); }
+  });
+  winSoundInput.addEventListener('change', ()=>{
+    winAudio = loadAudioFromFile(winSoundInput);
+    // store dataURL for persistence
+    (function(){
+      const f = winSoundInput.files?.[0];
+      if (f){
+        const r = new FileReader();
+        r.onload = (ev)=>{ winSoundDataURL = ev.target.result; };
+        r.readAsDataURL(f);
+      } else { winSoundDataURL = null; }
+    })();
+
+    if (winAudio){ winAudio.volume = parseFloat(winVol.value); }
+  });
+  spinVol.addEventListener('input', ()=>{ document.getElementById('spinVolLbl').textContent = Math.round(parseFloat(spinVol.value)*100)+'%'; if (spinAudio) spinAudio.volume = parseFloat(spinVol.value); });
+  winVol.addEventListener('input', ()=>{ document.getElementById('winVolLbl').textContent = Math.round(parseFloat(winVol.value)*100)+'%'; if (winAudio) winAudio.volume = parseFloat(winVol.value); });
+
+  toggleMute.addEventListener('click', ()=>{
+    const newMuted = !(spinAudio?.muted || winAudio?.muted || false);
+    const setMuted = (a)=>{ if(a){ a.muted = newMuted; } };
+    setMuted(spinAudio); setMuted(winAudio);
+    toggleMute.textContent = newMuted ? '🔇 Ton AUS' : '🔈 Ton an/aus';
+  });
+  // Save button
+  if (saveBtn){ saveBtn.addEventListener('click', saveState); }
+
+
+  /*** Confetti ***/
+  const confetti = {parts:[], active:false};
+  function makeConfetti(){
+    confetti.parts = [];
+    const W = confettiCanvas.width, H = confettiCanvas.height;
+    for (let i=0;i<160;i++){
+      confetti.parts.push({
+        x: Math.random()*W,
+        y: -20 - Math.random()*H*0.5,
+        r: 4+Math.random()*7,
+        vx: -1+Math.random()*2,
+        vy: 2+Math.random()*3.5,
+        rot: Math.random()*Math.PI,
+        vr: -0.2+Math.random()*0.4,
+        c: `hsl(${120+Math.random()*80}deg 70% ${60+Math.random()*20}%)`
+      });
+    }
+    confetti.active = true;
+  }
+  function tickConfetti(){
+    if (!confetti.active) return;
+    const W = confettiCanvas.width, H = confettiCanvas.height;
+    cfx.clearRect(0,0,W,H);
+    for (const p of confetti.parts){
+      p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.vy += 0.02;
+      cfx.save();
+      cfx.translate(p.x,p.y);
+      cfx.rotate(p.rot);
+      cfx.fillStyle = p.c;
+      cfx.fillRect(-p.r,-p.r,p.r*2,p.r*2);
+      cfx.restore();
+    }
+    confetti.parts = confetti.parts.filter(p=>p.y < H+30);
+    if (confetti.parts.length===0) confetti.active=false;
+    requestAnimationFrame(tickConfetti);
+  }
+
+  /*** Mario Kart item-box style spin effect (with clear white question mark) ***/
+  const mk = {active:false, start:0, duration:3000, angle:0, hue:0};
+  function drawMK(now){
+    const W = mkCanvas.width, H = mkCanvas.height;
+    mkx.clearRect(0,0,W,H);
+    if (!mk.active) return;
+
+    const t = Math.min(1, (now - mk.start)/mk.duration);
+    mk.hue = (now/10) % 360;
+    const wob = Math.sin(now/120)*0.08;
+    const scale = 0.95 + Math.sin(now/140)*0.05;
+    mk.angle += 0.06 + (1-t)*0.12; // decaying rotation
+
+    const size = Math.min(W,H)*0.26;
+    const cx = W/2, cy = H*0.5;
+    mkx.save();
+    mkx.translate(cx,cy);
+    mkx.rotate(mk.angle+wob);
+    mkx.scale(scale, scale);
+
+    // glowing square (item box)
+    const grd = mkx.createLinearGradient(-size,-size,size,size);
+    grd.addColorStop(0, `hsl(${(mk.hue+40)%360} 85% 65%)`);
+    grd.addColorStop(1, `hsl(${(mk.hue+320)%360} 85% 55%)`);
+    mkx.fillStyle = grd;
+    mkx.strokeStyle = 'rgba(255,255,255,.9)';
+    mkx.lineWidth = 8;
+    roundRect(mkx, -size, -size, size*2, size*2, 26);
+    mkx.fill();
+    mkx.stroke();
+
+    // inner glowing border
+    mkx.lineWidth = 4;
+    mkx.strokeStyle = 'rgba(255,255,255,.6)';
+    roundRect(mkx, -size*0.88, -size*0.88, size*1.76, size*1.76, 20);
+    mkx.stroke();
+
+    // white question mark using text glyph (clear Mario-like look)
+    mkx.rotate(-mk.angle*0.6);
+    mkx.textAlign = 'center';
+    mkx.textBaseline = 'middle';
+    // Use selected font but bold; fallback to Impact-like for chunky look
+    const fontFamily = fontSelect.value || "Impact, 'Arial Black', system-ui, sans-serif";
+    mkx.font = `900 ${Math.floor(size*1.15)}px ${fontFamily}`;
+    // Outer glow/outline
+    mkx.lineWidth = Math.max(8, size*0.06);
+    mkx.strokeStyle = 'rgba(0,0,0,0.35)';
+    mkx.strokeText('?', 0, -size*0.06);
+    // Bright white fill
+    mkx.fillStyle = '#ffffff';
+    mkx.fillText('?', 0, -size*0.06);
+
+    // sparkles around
+    for (let i=0;i<10;i++){
+      const a = (now/200 + i)*Math.PI/5;
+      const r = size*0.95;
+      const x = Math.cos(a)*r, y = Math.sin(a)*r;
+      mkx.save();
+      mkx.translate(x,y);
+      mkx.rotate(a);
+      mkx.fillStyle = `hsl(${(mk.hue+i*30)%360} 90% 70%)`;
+      mkx.fillRect(-7,-7,14,14);
+      mkx.restore();
+    }
+
+    mkx.restore();
+
+    if (t<1) { requestAnimationFrame(drawMK); }
+    else { mk.active = false; mkx.clearRect(0,0,W,H); }
+  }
+
+  function roundRect(ctx, x, y, w, h, r){
+    const rr = Math.min(r, w/2, h/2);
+    ctx.beginPath();
+    ctx.moveTo(x+rr,y);
+    ctx.arcTo(x+w,y,x+w,y+h,rr);
+    ctx.arcTo(x+w,y+h,x,y+h,rr);
+    ctx.arcTo(x,y+h,x,y,rr);
+    ctx.arcTo(x,y,x+w,y,rr);
+    ctx.closePath();
+  }
+
+  /*** Spin mechanics (random selection, no wheel) ***/
+  let spinning = false;
+  function spin(){
+    if (spinning) return;
+    if (prizes.length<1){ alert('Bitte mindestens 1 Feld anlegen.'); return; }
+
+    spinning = true;
+    const duration = 3200 + Math.random()*800;
+    const start = performance.now();
+
+    // Start animation box
+    mk.active = true;
+    mk.start = start;
+    mk.duration = duration * 0.9;
+    mk.angle = 0;
+    requestAnimationFrame(drawMK);
+
+    if (spinAudio){
+      try{ spinAudio.currentTime = 0; spinAudio.play().catch(()=>{}); }catch{}
+    }
+
+    // finish -> pick winner
+    setTimeout(()=>{
+      if (spinAudio){ try{ spinAudio.pause(); }catch{} }
+      showWinner();
+      spinning = false;
+    }, duration);
+  }
+
+  function showWinner(){
+    const idx = Math.floor(Math.random()*prizes.length);
+    const winner = prizes[idx];
+
+    // Overlay content
+    winnerTitle.textContent = 'Gewinn!';
+    winnerText.style.display = 'block';
+    winnerImage.style.display = 'none';
+    if (winner.type==='image' && winner.img){
+      winnerText.textContent = '';
+      winnerImage.src = winner.img.src;
+      winnerImage.style.display = 'block';
+    } else {
+      winnerText.textContent = (winner.text || 'Unbenannt');
+    }
+
+    if (winAudio){ try{ winAudio.currentTime = 0; winAudio.play().catch(()=>{}); }catch{} }
+    makeConfetti(); tickConfetti();
+    overlay.style.display = 'flex';
+
+    // hide again after a while
+    setTimeout(()=>{
+      overlay.style.display = 'none';
+      // nothing to clear (no wheel), just show bigSpin again
+      bigSpin.style.display = 'flex';
+    }, 3000);
+  }
+
+  /*** Events ***/
+  applyCountBtn.addEventListener('click', ()=>{
+    const n = Math.max(1, Math.min(32, parseInt(fieldCountEl.value||'8',10)));
+    createDefaultPrizes(n);
+  });
+  addItemBtn.addEventListener('click', ()=> addPrizeRow({type:'text', text:`Gewinn ${prizes.length+1}`}) );
+  clearAllBtn.addEventListener('click', ()=>{
+    prizes = [];
+    itemsEl.innerHTML='';
+  });
+
+  spinBtn.addEventListener('click', ()=>{
+    bigSpin.style.display = 'none';
+    spin();
+  });
+
+  /*** Init ***/
+  await loadStateIfAny(); if (prizes.length===0){ createDefaultPrizes(parseInt(fieldCountEl.value,10)); }
+  resizeCanvases();
+  bigSpin.style.display = 'flex';
+  overlay.style.display = 'none';
+})();
+</script>
+</body>
+</html>
